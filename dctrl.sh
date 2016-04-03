@@ -1,0 +1,53 @@
+#!/bin/sh
+set -e
+CONTROL=$1
+if [ -z "$CONTROL" ]; then
+  echo "Specify the name of the control container to create."
+  exit 1
+fi
+if [ -z "$DOCKER_HOST" ]; then
+  DOCKER_HOST=unix:///var/run/docker.sock
+fi
+case $DOCKER_HOST in
+tcp://*)
+  if [ -d "$DOCKER_CERT_PATH" ]; then
+    tar -C $DOCKER_CERT_PATH -cf- ca.pem cert.pem key.pem |
+      docker run --name $CONTROL -i -v /docker \
+        alpine sh -c "tar -C /docker -xf-
+          exec >/docker/env
+          echo export DOCKER_HOST=$DOCKER_HOST
+          echo export DOCKER_TLS_VERIFY=$DOCKER_TLS_VERIFY
+          echo export DOCKER_CERT_PATH=/docker"
+  else
+    docker run --name $CONTROL -v /docker \
+      apline sh -c "
+        exec >/docker/env
+        echo export DOCKER_HOST=$DOCKER_HOST
+        echo unset DOCKER_TLS_VERIFY
+        echo unset DOCKER_CERT_PATH"
+  fi
+  ;;
+unix:///*)
+  DOCKER_SOCKET=$(echo $DOCKER_HOST | cut -d/ -f3-)
+  if ! [ -S "$DOCKER_SOCKET" ]; then
+    echo "Docker socket ($DOCKER_SOCKET) doesn't seem to be a socket."
+    exit 1
+  fi
+  docker run --name $CONTROL -v /docker -v "$DOCKER_SOCKET:/docker.sock" \
+    alpine sh -c "
+      exec >/docker/env
+      echo export DOCKER_HOST=unix:///docker.sock
+      echo unset DOCKER_TLS_VERIFY
+      echo unset DOCKER_CERT_PATH"
+  ;;
+*)
+  echo "Sorry, I don't know how to handle DOCKER_HOST=$DOCKER_HOST."
+  exit 1
+  ;;
+esac
+
+echo "Container $CONTROL created."
+echo "To connect to your Docker API endpoint from a container:"
+echo "eval \$(docker run --rm --volumes-from $CONTROL alpine sed 's/DOCKER_/DOCKERCONTROL_/' /docker/env)"
+echo "docker run --volumes-from $CONTROL -e DOCKER_HOST=\$DOCKERCONTROL_HOST -e DOCKER_TLS_VERIFY=\$DOCKERCONTROL_TLS_VERIFY -e DOCKER_CERT_PATH=\$DOCKERCONTROL_CERT_PATH ..."
+
