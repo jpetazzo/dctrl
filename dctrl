@@ -8,6 +8,7 @@ fi
 if [ -z "$DOCKER_HOST" ]; then
   DOCKER_HOST=unix:///var/run/docker.sock
 fi
+DCTRL_API_VERSION="$(docker version --format '{{.Server.APIVersion}}')"
 case $DOCKER_HOST in
 tcp://*)
   if [ -d "$DOCKER_CERT_PATH" ]; then
@@ -15,6 +16,7 @@ tcp://*)
       docker run --name $CONTROL -i -v /docker \
         alpine sh -c "tar -C /docker -xf-
           exec >/docker/env
+          echo export DOCKER_API_VERSION=$DCTRL_API_VERSION
           echo export DOCKER_HOST=$DOCKER_HOST
           echo export DOCKER_TLS_VERIFY=$DOCKER_TLS_VERIFY
           echo export DOCKER_CERT_PATH=/docker"
@@ -22,6 +24,7 @@ tcp://*)
     docker run --name $CONTROL -v /docker \
       apline sh -c "
         exec >/docker/env
+        echo export DOCKER_API_VERSION=$DCTRL_API_VERSION
         echo export DOCKER_HOST=$DOCKER_HOST
         echo unset DOCKER_TLS_VERIFY
         echo unset DOCKER_CERT_PATH"
@@ -36,6 +39,7 @@ unix:///*)
   docker run --name $CONTROL -v /docker -v "$DOCKER_SOCKET:/docker.sock" \
     alpine sh -c "
       exec >/docker/env
+      echo export DOCKER_API_VERSION=$DCTRL_API_VERSION
       echo export DOCKER_HOST=unix:///docker.sock
       echo unset DOCKER_TLS_VERIFY
       echo unset DOCKER_CERT_PATH"
@@ -49,5 +53,4 @@ esac
 echo "Container $CONTROL created."
 echo "To connect to your Docker API endpoint from a container:"
 echo "eval \$(docker run --rm --volumes-from $CONTROL alpine sed 's/DOCKER_/DOCKERCONTROL_/' /docker/env)"
-echo "docker run --volumes-from $CONTROL -e DOCKER_HOST=\$DOCKERCONTROL_HOST -e DOCKER_TLS_VERIFY=\$DOCKERCONTROL_TLS_VERIFY -e DOCKER_CERT_PATH=\$DOCKERCONTROL_CERT_PATH ..."
-
+echo "docker run --volumes-from $CONTROL -e DOCKER_HOST=\$DOCKERCONTROL_HOST -e DOCKER_TLS_VERIFY=\$DOCKERCONTROL_TLS_VERIFY -e DOCKER_CERT_PATH=\$DOCKERCONTROL_CERT_PATH -e DOCKER_API_VERSION=\$DOCKERCONTROL_API_VERSION ..."
