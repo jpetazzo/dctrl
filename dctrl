@@ -22,7 +22,7 @@ tcp://*)
           echo export DOCKER_CERT_PATH=/docker"
   else
     docker run --name $CONTROL -v /docker \
-      apline sh -c "
+      alpine sh -c "
         exec >/docker/env
         echo export DOCKER_API_VERSION=$DCTRL_API_VERSION
         echo export DOCKER_HOST=$DOCKER_HOST
